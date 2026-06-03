@@ -16,10 +16,11 @@ import argparse
 import csv
 import sys
 import unicodedata
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 
 try:
-    from openpyxl import Workbook
+    from openpyxl import Workbook, load_workbook
     from openpyxl.styles import Font, PatternFill
 except ModuleNotFoundError:
     print(
@@ -70,6 +71,39 @@ def parse_hms_to_excel_time(value: str) -> float:
     return total_seconds / 86400.0
 
 
+def parse_excel_time_to_fraction(value: object) -> float:
+    if value is None:
+        return 0.0
+
+    if isinstance(value, bool):
+        return 0.0
+
+    if isinstance(value, (int, float)):
+        return float(value)
+
+    if isinstance(value, timedelta):
+        return value.total_seconds() / 86400.0
+
+    if isinstance(value, time):
+        total_seconds = value.hour * 3600 + value.minute * 60 + value.second
+        return total_seconds / 86400.0
+
+    if isinstance(value, str):
+        return parse_hms_to_excel_time(value)
+
+    return 0.0
+
+
+def normalize_cell_text(value: object) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, datetime):
+        return value.strftime("%d/%m/%Y, %H:%M")
+    if isinstance(value, date):
+        return value.strftime("%d/%m/%Y")
+    return str(value).strip()
+
+
 def detect_dialect(csv_path: Path) -> csv.Dialect:
     with csv_path.open("r", encoding="utf-8-sig", newline="") as file:
         sample = file.read(4096)
@@ -113,7 +147,7 @@ def apply_header_style(worksheet, total_columns: int) -> None:
         )
 
 
-def process_csv(input_path: Path, output_path: Path) -> None:
+def parse_rows_from_input_file(input_path: Path) -> list[dict[str, str | float]]:
     dialect = detect_dialect(input_path)
     rows: list[dict[str, str | float]] = []
 
@@ -136,6 +170,10 @@ def process_csv(input_path: Path, output_path: Path) -> None:
             }
             rows.append(entry)
 
+    return rows
+
+
+def write_output_workbook(rows: list[dict[str, str | float]], output_path: Path) -> None:
     workbook = Workbook()
     ws_data = workbook.active
     ws_data.title = "Dados"
@@ -179,6 +217,78 @@ def process_csv(input_path: Path, output_path: Path) -> None:
     workbook.save(output_path)
 
 
+def row_signature(row: dict[str, str | float]) -> tuple[str, float, str, str, str]:
+    return (
+        str(row["Atividade"]).strip(),
+        round(float(row["Horas Apontadas"]), 10),
+        str(row["Apontado por"]).strip(),
+        str(row["Data de Início Real"]).strip(),
+        str(row["Data de Fim Real"]).strip(),
+    )
+
+
+def load_existing_rows(output_path: Path) -> list[dict[str, str | float]]:
+    if not output_path.exists():
+        return []
+
+    workbook = load_workbook(output_path, data_only=False)
+    if "Dados" not in workbook.sheetnames:
+        return []
+
+    ws_data = workbook["Dados"]
+    if ws_data.max_row < 2:
+        return []
+
+    headers = [ws_data.cell(row=1, column=col).value for col in range(1, 6)]
+    normalized_headers = {
+        normalize(str(header)): idx
+        for idx, header in enumerate(headers, start=1)
+        if header is not None
+    }
+
+    required = {
+        "atividade": "Atividade",
+        "horas apontadas": "Horas Apontadas",
+        "apontado por": "Apontado por",
+        "data de inicio real": "Data de Início Real",
+        "data de fim real": "Data de Fim Real",
+    }
+    missing = [name for name in required if name not in normalized_headers]
+    if missing:
+        return []
+
+    rows: list[dict[str, str | float]] = []
+    for row_index in range(2, ws_data.max_row + 1):
+        atividade = normalize_cell_text(ws_data.cell(row=row_index, column=normalized_headers["atividade"]).value)
+        horas = parse_excel_time_to_fraction(
+            ws_data.cell(row=row_index, column=normalized_headers["horas apontadas"]).value
+        )
+        apontado_por = normalize_cell_text(
+            ws_data.cell(row=row_index, column=normalized_headers["apontado por"]).value
+        )
+        data_inicio = normalize_cell_text(
+            ws_data.cell(row=row_index, column=normalized_headers["data de inicio real"]).value
+        )
+        data_fim = normalize_cell_text(
+            ws_data.cell(row=row_index, column=normalized_headers["data de fim real"]).value
+        )
+
+        if not any([atividade, horas, apontado_por, data_inicio, data_fim]):
+            continue
+
+        rows.append(
+            {
+                "Atividade": atividade,
+                "Horas Apontadas": horas,
+                "Apontado por": apontado_por,
+                "Data de Início Real": data_inicio,
+                "Data de Fim Real": data_fim,
+            }
+        )
+
+    return rows
+
+
 def select_input_files(input_file: Path | None, input_dir: Path, process_all: bool) -> list[Path]:
     if input_file:
         if not input_file.exists():
@@ -186,16 +296,20 @@ def select_input_files(input_file: Path | None, input_dir: Path, process_all: bo
         return [input_file]
 
     input_dir.mkdir(parents=True, exist_ok=True)
-    csv_files = sorted(input_dir.glob("*.csv"), key=lambda path: path.stat().st_mtime, reverse=True)
-    if not csv_files:
+    input_files = [
+        *input_dir.glob("*.csv"),
+        *input_dir.glob("*.txt"),
+    ]
+    input_files_sorted = sorted(input_files, key=lambda path: path.stat().st_mtime, reverse=True)
+    if not input_files_sorted:
         raise FileNotFoundError(
-            f"Nenhum CSV encontrado em '{input_dir}'. "
+            f"Nenhum CSV/TXT encontrado em '{input_dir}'. "
             "Coloque o arquivo na pasta e execute novamente."
         )
 
     if process_all:
-        return list(reversed(csv_files))
-    return [csv_files[0]]
+        return list(reversed(input_files_sorted))
+    return [input_files_sorted[0]]
 
 
 def parse_args() -> argparse.Namespace:
@@ -223,7 +337,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--todos",
         action="store_true",
-        help="Processa todos os CSVs da pasta de entrada.",
+        help="Processa todos os CSVs/TXTs da pasta de entrada.",
+    )
+    parser.add_argument(
+        "--acumular-em",
+        type=Path,
+        default=None,
+        help=(
+            "Acumula dados em um unico XLSX historico, sem apagar os dias anteriores. "
+            "Nao duplica linhas identicas."
+        ),
     )
     return parser.parse_args()
 
@@ -233,11 +356,34 @@ def main() -> int:
 
     try:
         files = select_input_files(args.arquivo, args.entrada, args.todos)
-        for csv_file in files:
-            output_name = f"{csv_file.stem}_editada.xlsx"
+        if args.acumular_em:
+            historical_rows = load_existing_rows(args.acumular_em)
+            existing_signatures = {row_signature(row) for row in historical_rows}
+            new_rows = 0
+
+            for input_file in files:
+                parsed_rows = parse_rows_from_input_file(input_file)
+                for row in parsed_rows:
+                    signature = row_signature(row)
+                    if signature in existing_signatures:
+                        continue
+                    historical_rows.append(row)
+                    existing_signatures.add(signature)
+                    new_rows += 1
+
+            write_output_workbook(historical_rows, args.acumular_em)
+            print(
+                f"OK: {len(historical_rows)} registros totais ({new_rows} novos) "
+                f"-> {args.acumular_em}"
+            )
+            return 0
+
+        for input_file in files:
+            output_name = f"{input_file.stem}_editada.xlsx"
             output_file = args.saida / output_name
-            process_csv(csv_file, output_file)
-            print(f"OK: {csv_file} -> {output_file}")
+            rows = parse_rows_from_input_file(input_file)
+            write_output_workbook(rows, output_file)
+            print(f"OK: {input_file} -> {output_file}")
         return 0
     except Exception as exc:  # noqa: BLE001
         print(f"Erro: {exc}", file=sys.stderr)
