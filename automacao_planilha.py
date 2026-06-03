@@ -31,19 +31,19 @@ except ModuleNotFoundError:
 
 HEADER_COLOR = "1F4E78"
 TARGET_HEADERS = [
-    "Data de início real",
     "Atividade",
-    "Horas apontado",
-    "Apontado Por",
-    "Data de fim real",
+    "Horas Apontadas",
+    "Apontado por",
+    "Data de Início Real",
+    "Data de Fim Real",
 ]
 
 SOURCE_ALIASES = {
-    "Data de início real": ["data de inicio real"],
     "Atividade": ["atividade"],
-    "Horas apontado": ["horas apontadas", "horas apontado"],
-    "Apontado Por": ["apontado por"],
-    "Data de fim real": ["data de fim real"],
+    "Horas Apontadas": ["horas apontadas", "horas apontado"],
+    "Apontado por": ["apontado por"],
+    "Data de Início Real": ["data de inicio real"],
+    "Data de Fim Real": ["data de fim real"],
 }
 
 
@@ -126,13 +126,13 @@ def process_csv(input_path: Path, output_path: Path) -> None:
 
         for row in reader:
             entry = {
-                "Data de início real": (row.get(source_headers["Data de início real"]) or "").strip(),
                 "Atividade": (row.get(source_headers["Atividade"]) or "").strip(),
-                "Horas apontado": parse_hms_to_excel_time(
-                    row.get(source_headers["Horas apontado"]) or ""
+                "Horas Apontadas": parse_hms_to_excel_time(
+                    row.get(source_headers["Horas Apontadas"]) or ""
                 ),
-                "Apontado Por": (row.get(source_headers["Apontado Por"]) or "").strip(),
-                "Data de fim real": (row.get(source_headers["Data de fim real"]) or "").strip(),
+                "Apontado por": (row.get(source_headers["Apontado por"]) or "").strip(),
+                "Data de Início Real": (row.get(source_headers["Data de Início Real"]) or "").strip(),
+                "Data de Fim Real": (row.get(source_headers["Data de Fim Real"]) or "").strip(),
             }
             rows.append(entry)
 
@@ -142,18 +142,18 @@ def process_csv(input_path: Path, output_path: Path) -> None:
     ws_data.append(TARGET_HEADERS)
 
     for index, row in enumerate(rows, start=2):
-        ws_data.cell(row=index, column=1, value=row["Data de início real"])
-        ws_data.cell(row=index, column=2, value=row["Atividade"])
-        hours_cell = ws_data.cell(row=index, column=3, value=row["Horas apontado"])
+        ws_data.cell(row=index, column=1, value=row["Atividade"])
+        hours_cell = ws_data.cell(row=index, column=2, value=row["Horas Apontadas"])
         hours_cell.number_format = "[h]:mm:ss"
-        ws_data.cell(row=index, column=4, value=row["Apontado Por"])
-        ws_data.cell(row=index, column=5, value=row["Data de fim real"])
+        ws_data.cell(row=index, column=3, value=row["Apontado por"])
+        ws_data.cell(row=index, column=4, value=row["Data de Início Real"])
+        ws_data.cell(row=index, column=5, value=row["Data de Fim Real"])
 
     apply_header_style(ws_data, total_columns=5)
-    ws_data.column_dimensions["A"].width = 20
-    ws_data.column_dimensions["B"].width = 55
+    ws_data.column_dimensions["A"].width = 55
+    ws_data.column_dimensions["B"].width = 16
     ws_data.column_dimensions["C"].width = 16
-    ws_data.column_dimensions["D"].width = 35
+    ws_data.column_dimensions["D"].width = 20
     ws_data.column_dimensions["E"].width = 20
 
     ws_summary = workbook.create_sheet("Resumo")
@@ -161,13 +161,13 @@ def process_csv(input_path: Path, output_path: Path) -> None:
     ws_summary.append(summary_headers)
 
     collaborators = sorted(
-        {row["Apontado Por"] for row in rows if row["Apontado Por"]},
+        {row["Apontado por"] for row in rows if row["Apontado por"]},
         key=lambda name: str(name).lower(),
     )
 
     for row_index, collaborator in enumerate(collaborators, start=2):
         ws_summary.cell(row=row_index, column=1, value=collaborator)
-        formula = f"=SUMIF(Dados!$D:$D,A{row_index},Dados!$C:$C)"
+        formula = f"=SUMIF(Dados!$C:$C,A{row_index},Dados!$B:$B)"
         total_cell = ws_summary.cell(row=row_index, column=2, value=formula)
         total_cell.number_format = "[h]:mm:ss"
 

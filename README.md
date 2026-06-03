@@ -5,11 +5,11 @@
 Este projeto agora possui um fluxo simples para transformar o CSV exportado em um Excel padrao com:
 
 - Aba **Dados** com as colunas:
-  - Data de início real
   - Atividade
-  - Horas apontado
-  - Apontado Por
-  - Data de fim real
+  - Horas Apontadas
+  - Apontado por
+  - Data de Início Real
+  - Data de Fim Real
 - Aba **Resumo** com total de horas por colaborador (somatorio automatico via formula).
 
 ### 1) Instalar dependencia (uma vez)
