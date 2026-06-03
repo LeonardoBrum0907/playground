@@ -1,1 +1,49 @@
 # playground
+
+## Automacao de planilha (1 clique)
+
+Este projeto agora possui um fluxo simples para transformar o CSV exportado em um Excel padrao com:
+
+- Aba **Dados** com as colunas:
+  - Data de início real
+  - Atividade
+  - Horas apontado
+  - Apontado Por
+  - Data de fim real
+- Aba **Resumo** com total de horas por colaborador (somatorio automatico via formula).
+
+### 1) Instalar dependencia (uma vez)
+
+```bash
+python3 -m pip install openpyxl
+```
+
+### 2) Colocar o CSV na pasta de entrada
+
+```bash
+mkdir -p entrada saida
+```
+
+Coloque o arquivo `.csv` em `./entrada`.
+
+### 3) Rodar em 1 comando
+
+```bash
+./executar_automacao.sh
+```
+
+Isso processa o CSV mais recente da pasta `entrada` e gera o arquivo final em `./saida`.
+
+### Opcoes uteis
+
+Processar um arquivo especifico:
+
+```bash
+./executar_automacao.sh --arquivo "/caminho/arquivo.csv"
+```
+
+Processar todos os CSVs da pasta `entrada`:
+
+```bash
+./executar_automacao.sh --todos
+```
