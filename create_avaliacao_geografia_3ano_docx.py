@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
-"""Gera avaliação de Geografia (3º ano) em formato Word (.docx)."""
+"""Gera avaliação de Geografia (3º ano) em formato Word (.docx).
 
+Conteúdos alinhados ao livro didático: festas populares (frevo), etnia e
+cultura, elementos culturais e cultura através das gerações.
+"""
+
+import time
+import urllib.request
+from io import BytesIO
 from pathlib import Path
 
 from docx import Document
@@ -8,6 +15,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
+from PIL import Image
 
 OUTPUT_PATH = Path("/workspace/Avaliacao_Geografia_3ano.docx")
 ASSETS_DIR = Path("/workspace/avaliacao_geografia_assets")
@@ -17,73 +25,108 @@ GREEN = RGBColor(27, 94, 32)
 DARK = RGBColor(31, 41, 55)
 MUTED = RGBColor(75, 85, 99)
 
+IMAGE_SOURCES = {
+    "frevo": (
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/"
+        "Frevo_no_Carnaval_do_Recife.jpg/960px-Frevo_no_Carnaval_do_Recife.jpg"
+    ),
+    "etnia_mundo": (
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/"
+        "West_Greenland_Inuit_modern_outfit_with_avittat.jpg/960px-"
+        "West_Greenland_Inuit_modern_outfit_with_avittat.jpg"
+    ),
+    "cultura_elementos": (
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/7/74/"
+        "Music_is_international_language_210824-F-F3261-1001.jpg/960px-"
+        "Music_is_international_language_210824-F-F3261-1001.jpg"
+    ),
+    "esconde_esconde": (
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/"
+        "Crian%C3%A7as_CEU.jpg/960px-Crian%C3%A7as_CEU.jpg"
+    ),
+    "cultura_costumes": (
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/"
+        "Three_generations_of_a_family_%281%29.jpg/960px-"
+        "Three_generations_of_a_family_%281%29.jpg"
+    ),
+    "cultura_diversidade": (
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/"
+        "VanAchterbergAlgeria.jpg/960px-VanAchterbergAlgeria.jpg"
+    ),
+    "cultura_urbana": (
+        "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/"
+        "Grafite_no_BankBoston_da_Avenida_Paulista%2C_S%C3%A3o_Paulo.jpg/"
+        "960px-Grafite_no_BankBoston_da_Avenida_Paulista%2C_S%C3%A3o_Paulo.jpg"
+    ),
+}
+
 OBJETIVAS = [
     {
         "number": 1,
-        "theme": "Lugares de vivência",
+        "theme": "Festas populares e frevo",
         "question": (
-            "Observe a imagem abaixo. Qual alternativa descreve melhor um "
-            "lugar de vivência?"
+            "Observe a imagem. A dança representada é o frevo, uma festa popular "
+            "de rua. Sobre essa manifestação cultural, assinale a alternativa correta:"
         ),
-        "image": "bairro",
-        "caption": "Bairro residencial em Minas Gerais.",
+        "image": "frevo",
+        "caption": "Passistas de frevo no Carnaval do Recife, Pernambuco.",
         "options": [
-            "Um local onde vivemos, convivemos e realizamos atividades do dia a dia.",
-            "Apenas lugares turísticos visitados nas férias.",
-            "Somente a escola, pois é onde aprendemos.",
-            "Lugares que existem apenas em mapas e atlas.",
+            "O frevo é uma dança que se originou em Pernambuco e faz parte das festas populares brasileiras.",
+            "O frevo é uma dança que existe apenas em países europeus.",
+            "O frevo não é considerado manifestação cultural porque acontece na rua.",
+            "O frevo é igual em todas as cidades do mundo.",
         ],
         "answer": "A",
     },
     {
         "number": 2,
-        "theme": "O que é cultura",
+        "theme": "Etnia e cultura",
         "question": (
-            "Cultura é o conjunto de costumes, festas, comidas, músicas e "
-            "formas de viver de um grupo de pessoas. Qual item NÃO representa "
-            "um elemento cultural?"
+            "Segundo o livro, etnia é uma comunidade formada por pessoas que "
+            "compartilham elementos comuns. Observe a imagem e marque a alternativa "
+            "correta sobre cultura:"
         ),
-        "image": "cultura_festa",
-        "caption": "Festa junina com dança de crianças.",
+        "image": "etnia_mundo",
+        "caption": "Traje tradicional inuit — exemplo de identidade cultural.",
         "options": [
-            "Preparar comidas típicas da região em datas especiais.",
-            "Celebrar festas tradicionais com danças e músicas.",
-            "A altura de uma montanha medida em metros.",
-            "Contar histórias passadas de pais para filhos.",
+            "Todas as culturas são iguais e não apresentam diferenças.",
+            "Algumas culturas são melhores que outras.",
+            "Existem culturas diferentes, e nenhuma é melhor ou pior — são apenas diferentes.",
+            "A cultura existe apenas nas grandes cidades.",
         ],
         "answer": "C",
     },
     {
         "number": 3,
-        "theme": "Cultura entre gerações",
+        "theme": "O que é cultura",
         "question": (
-            "Observe a imagem com pessoas de idades diferentes. Por que a "
-            "cultura pode ser diferente entre avós, pais e crianças?"
+            "O livro apresenta crenças, expressões artísticas, costumes e leis como "
+            "parte da cultura. Qual alternativa representa uma expressão artística?"
         ),
-        "image": "geracoes",
-        "caption": "Três gerações de uma mesma família.",
+        "image": "cultura_elementos",
+        "caption": "Crianças cantando e tocando instrumento musical.",
         "options": [
-            "Porque cada geração vive em épocas e contextos distintos.",
-            "Porque apenas os avós têm cultura de verdade.",
-            "Porque crianças não participam de nenhuma tradição.",
-            "Porque a cultura nunca muda de uma geração para outra.",
+            "Respeitar as leis de trânsito ao atravessar a rua.",
+            "Almoçar em família ao redor da mesa.",
+            "Cantar e tocar instrumentos musicais.",
+            "Acreditar em ideias e tradições religiosas.",
         ],
-        "answer": "A",
+        "answer": "C",
     },
     {
         "number": 4,
-        "theme": "Cultura brasileira urbana",
+        "theme": "Cultura através das gerações",
         "question": (
-            "Observe a imagem de arte urbana. Esse tipo de manifestação "
-            "cultural é comum em cidades brasileiras porque:"
+            "Observe a imagem. Qual brincadeira está sendo representada e como ela "
+            "se relaciona com a cultura?"
         ),
-        "image": "cultura_urbana",
-        "caption": "Grafite na Avenida Paulista, São Paulo.",
+        "image": "esconde_esconde",
+        "caption": "Crianças brincando ao ar livre — transmissão cultural entre gerações.",
         "options": [
-            "Só existe em países frios, longe do Brasil.",
-            "Expressa identidade, criatividade e vida nas cidades.",
-            "Não tem relação com a cultura local.",
-            "Substitui completamente todas as outras tradições.",
+            "Amarelinha; é uma brincadeira que não muda nunca.",
+            "Esconde-esconde; é uma brincadeira aprendida e transmitida entre pessoas de diferentes idades.",
+            "Videogame; só existe na cultura dos adultos.",
+            "Futebol; não faz parte da cultura infantil.",
         ],
         "answer": "B",
     },
@@ -92,108 +135,138 @@ OBJETIVAS = [
 DISSERTATIVAS = [
     {
         "number": 5,
-        "theme": "Lugares de vivência",
+        "theme": "Festas populares",
         "question": (
-            "Pedro acorda em casa, toma café, vai à escola, brinca na praça "
-            "depois das aulas e ajuda a mãe no mercado. Cite três lugares de "
-            "vivência presentes nessa rotina e explique por que a escola também "
-            "é um lugar de vivência."
+            "O que é uma festa popular? Explique usando o frevo como exemplo. "
+            "Informe em qual estado brasileiro essa dança se originou e descreva "
+            "dois elementos visíveis na imagem (como roupa, sombrinha ou movimento)."
         ),
-        "image": "escola",
-        "caption": "Escola municipal — lugar de convivência e aprendizagem.",
+        "image": "frevo",
+        "caption": "Frevo — manifestação cultural de Pernambuco.",
         "lines": 6,
         "answer_hint": (
-            "Lugares: casa, escola, praça, mercado. A escola é lugar de "
-            "vivência porque o aluno convive, aprende, brinca e participa da "
-            "vida coletiva diariamente."
+            "Festa popular é uma celebração realizada pelo povo, muitas vezes na "
+            "rua. O frevo é originário de Pernambuco (Recife/Olinda). Elementos: "
+            "fantasia colorida, sombrinha (guarda-sol), passos acrobáticos, música."
         ),
     },
     {
         "number": 6,
-        "theme": "O que é cultura",
+        "theme": "Etnia e cultura",
         "question": (
-            "Escreva com suas palavras o que é cultura. Depois, dê um exemplo "
-            "de manifestação cultural que você conhece na sua cidade ou bairro."
+            "Escreva com suas palavras o que é etnia. Depois, observe a imagem e "
+            "cite dois elementos culturais que podem ser identificados na roupa e "
+            "no modo de vida das pessoas fotografadas."
         ),
-        "image": None,
-        "caption": None,
+        "image": "etnia_mundo",
+        "caption": "Povos de diferentes regiões têm trajes e costumes próprios.",
         "lines": 6,
         "answer_hint": (
-            "Cultura é o conjunto de costumes, tradições, festas, comidas, "
-            "músicas e formas de viver compartilhadas por um grupo. Exemplos: "
-            "festa junina, capoeira, culinária regional, festa de bairro."
+            "Etnia é um grupo de pessoas que compartilha cultura, língua, história "
+            "e características comuns. Elementos: traje tradicional, padrões "
+            "têxteis, adaptação ao clima, formas de trabalho e convivência."
         ),
     },
     {
         "number": 7,
-        "theme": "Cultura entre gerações",
+        "theme": "O que é cultura",
         "question": (
-            "Observe a imagem e escreva duas diferenças entre as brincadeiras "
-            "ou hábitos culturais dos avós e os das crianças de hoje. "
-            "Mencione também uma tradição que pode ser compartilhada entre "
-            "as gerações."
+            "De acordo com o livro, cite os quatro elementos que formam a cultura "
+            "de um grupo (crenças, expressões artísticas, costumes e leis) e dê "
+            "um exemplo de cada um."
         ),
-        "image": "geracoes",
-        "caption": "Avós, pais e crianças convivem e transmitem tradições.",
-        "lines": 6,
+        "image": "cultura_costumes",
+        "caption": "Família reunida — exemplo de costume cultural.",
+        "lines": 7,
         "answer_hint": (
-            "Diferenças: brincadeiras de rua/pião vs jogos digitais; "
-            "músicas e festas de épocas distintas. Compartilhada: contação "
-            "de histórias, receitas de família, samba de roda, festas."
+            "Crenças: religião ou ideias; Expressões artísticas: música e dança; "
+            "Costumes: almoço em família; Leis: respeitar faixa de pedestres."
         ),
     },
     {
         "number": 8,
-        "theme": "O que é cultura",
+        "theme": "Cultura através das gerações",
         "question": (
-            "Observe a imagem da festa junina. Cite três elementos culturais "
-            "visíveis ou relacionados a essa festa e explique o que cada um "
-            "representa para a cultura brasileira."
+            "Observe a imagem das crianças brincando. Qual brincadeira está "
+            "representada? Explique como aprendemos novas brincadeiras e por que "
+            "elas fazem parte da cultura transmitida entre gerações."
         ),
-        "image": "cultura_festa",
-        "caption": "Dança típica em festa junina.",
+        "image": "esconde_esconde",
+        "caption": "Brincadeiras de rua fazem parte da cultura infantil.",
         "lines": 6,
         "answer_hint": (
-            "Trajes caipiras, danças (quadrilha), comidas (pipoca, "
-            "canjica, quentão), fogueira, bandeirinhas. Representam tradições "
-            "do campo e celebrações populares do Brasil."
+            "Esconde-esconde. Aprendemos com amigos, colegas e pessoas mais velhas "
+            "que nos ensinam as regras. Brincadeiras são manifestações culturais "
+            "passadas de geração em geração, embora também mudem com o tempo."
         ),
     },
     {
         "number": 9,
-        "theme": "Cultura brasileira urbana",
+        "theme": "Cultura através das gerações",
         "question": (
-            "Observe a imagem de um bloco de carnaval nas ruas de São Paulo. "
-            "Descreva o que acontece nesse tipo de manifestação cultural e "
-            "explique por que ela faz parte da cultura urbana brasileira."
+            "O livro diz que, em cidades, vilas, fazendas ou mata, todos somos "
+            "brasileiros, mas cada comunidade tem sua cultura. Explique por que "
+            "comunidades diferentes têm costumes e tradições distintos. Dê dois "
+            "exemplos de manifestações culturais (como formas de plantar, preparar "
+            "comida ou brincar)."
         ),
-        "image": "samba_urbano",
-        "caption": "Bloco de carnaval nas ruas de São Paulo.",
-        "lines": 6,
+        "image": None,
+        "caption": None,
+        "lines": 7,
         "answer_hint": (
-            "Há música, dança, fantasias e convivência nas ruas da cidade. "
-            "Faz parte da cultura urbana porque expressa identidade, "
-            "criatividade e vida coletiva no espaço urbano."
+            "Cada lugar tem história, clima, pessoas e convivência próprios. "
+            "Exemplos: modos de plantar e preparar comida regionais; brincadeiras "
+            "como pião, amarelinha, esconde-esconde; festas como junina e frevo."
         ),
     },
     {
         "number": 10,
-        "theme": "Cultura brasileira urbana",
+        "theme": "Cultura brasileira",
         "question": (
-            "Cite três manifestações culturais urbanas do Brasil (como funk, "
-            "grafite, samba, capoeira ou blocos de rua) e explique brevemente "
-            "como cada uma se manifesta na cidade."
+            "Observe a imagem de pessoas com trajes tradicionais de outra região "
+            "do mundo. Compare com a cultura brasileira: o que é semelhante e o que "
+            "é diferente? Por que o livro afirma que nos sentimos pertencentes a "
+            "uma comunidade?"
         ),
-        "image": "cultura_urbana",
-        "caption": "Arte urbana em grande centro metropolitano.",
+        "image": "cultura_diversidade",
+        "caption": "Traje tradicional tuareg — diversidade cultural no mundo.",
         "lines": 7,
         "answer_hint": (
-            "Funk: batidas e danças nas periferias; grafite: arte nas paredes "
-            "e viadutos; samba/capoeira: rodas em praças e bairros; blocos: "
-            "carnaval nas ruas."
+            "Semelhanças: todos têm trajes, festas, comidas e formas de viver. "
+            "Diferenças: roupas, clima, trabalho e tradições variam. Sentimos "
+            "pertencimento porque compartilhamos língua, costumes e identidade "
+            "com o grupo em que convivemos."
         ),
     },
 ]
+
+
+def download_images():
+    ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+    headers = {"User-Agent": "GeoAssessmentBot/1.0 (educational; classroom use)"}
+    paths = {}
+    for name, url in IMAGE_SOURCES.items():
+        path = ASSETS_DIR / f"{name}.jpg"
+        downloaded = False
+        for attempt in range(3):
+            try:
+                req = urllib.request.Request(url, headers=headers)
+                with urllib.request.urlopen(req, timeout=30) as response:
+                    data = response.read()
+                if len(data) < 15000:
+                    raise ValueError("Arquivo muito pequeno")
+                path.write_bytes(data)
+                paths[name] = path
+                downloaded = True
+                break
+            except Exception:
+                time.sleep(1.5 * (attempt + 1))
+        if not downloaded and path.exists() and path.stat().st_size >= 15000:
+            paths[name] = path
+        elif not downloaded:
+            raise RuntimeError(f"Não foi possível baixar a imagem: {name}")
+        time.sleep(0.3)
+    return paths
 
 
 def set_run_font(run, size=11, bold=False, color=DARK, name="Arial"):
@@ -239,10 +312,6 @@ def add_image_block(doc, image_key, caption):
     if not image_path.exists():
         add_paragraph(doc, f"[Imagem: {caption}]", size=10, color=MUTED)
         return
-
-    from io import BytesIO
-
-    from PIL import Image
 
     with Image.open(image_path) as img:
         img = img.convert("RGB")
@@ -323,6 +392,8 @@ def add_essay_question(doc, item):
 
 
 def build_student_document(output_path):
+    download_images()
+
     doc = Document()
     section = doc.sections[0]
     section.top_margin = Cm(2)
@@ -343,7 +414,7 @@ def build_student_document(output_path):
     theme = doc.add_paragraph()
     theme.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run = theme.add_run(
-        "Lugares de vivência • O que é cultura • Cultura entre gerações • Cultura brasileira urbana"
+        "Festas populares • Etnia e cultura • Elementos culturais • Cultura através das gerações"
     )
     set_run_font(run, size=10, color=MUTED)
     theme.paragraph_format.space_after = Pt(12)
@@ -360,10 +431,10 @@ def build_student_document(output_path):
     add_paragraph(doc, "Instruções", size=12, bold=True, color=GREEN, space_after=6)
     instructions = [
         "• Leia cada questão com atenção antes de responder.",
-        "• Observe as imagens — elas ajudam na resposta.",
+        "• Observe as imagens — elas remetem aos conteúdos estudados no livro.",
         "• Parte I: marque com X a alternativa correta nos espaços (   ).",
         "• Parte II: escreva a resposta completa nas linhas indicadas.",
-        "• Avaliação de dificuldade média — valor total: 10 pontos (1 ponto por questão).",
+        "• Dificuldade média — valor total: 10 pontos (1 ponto por questão).",
         "• Tempo sugerido: 50 minutos.",
     ]
     for line in instructions:
